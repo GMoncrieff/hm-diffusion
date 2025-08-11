@@ -119,7 +119,21 @@ def sliding_window_sample_and_stitch(
             if hfi_type == "minmax":
                 lo, hi = (hfi_range[0], hfi_range[1]) if isinstance(hfi_range, (list, tuple)) else (0.0, 1.0)
                 std = std * float(hi - lo)
-
+        
+        # optional clipping to [0,1] in data space if configured
+        try:
+            cfg_obj = getattr(cond, "cfg", {})
+            clip01 = False
+            if isinstance(cfg_obj, dict):
+                clip01 = bool(cfg_obj.get("target", {}).get("clip01", False))
+            if clip01:
+                mean = np.clip(mean, 0.0, 1.0)
+                p10  = np.clip(p10,  0.0, 1.0)
+                med  = np.clip(med,  0.0, 1.0)
+                p90  = np.clip(p90,  0.0, 1.0)
+        except Exception:
+            pass
+        
         if write_mean: writers["mean"].write(mean, 1, window=rio.windows.Window(col, r, w, h))
         if write_std:  writers["std"].write(std, 1, window=rio.windows.Window(col, r, w, h))
         if write_p10:  writers["p10"].write(p10, 1, window=rio.windows.Window(col, r, w, h))

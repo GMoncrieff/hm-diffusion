@@ -11,6 +11,7 @@ from torch.utils.data import Dataset, DataLoader, Subset
 import rasterio as rio
 from rasterio.windows import Window
 from affine import Affine
+import lightning as L
 
 
 def _open(path: str | Path):
@@ -232,12 +233,11 @@ class PairedTilesDataset(Dataset):
         return sample
 
 
-class PairedStepDataModule:
-    """Lightning-style DataModule facade without importing Lightning.
-    Scripts construct DataLoader from here.
-    """
+class PairedStepDataModule(L.LightningDataModule):
+    """LightningDataModule for paired tiles dataset."""
 
     def __init__(self, cfg: Dict):
+        super().__init__()
         self.cfg = cfg
         self.train_ds: Optional[PairedTilesDataset] = None
         self.val_ds: Optional[PairedTilesDataset] = None

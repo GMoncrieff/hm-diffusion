@@ -122,6 +122,7 @@ python scripts/eval_backtest.py \
 * **Feathering**: the baseline stitcher assumes `stride == size` (no overlap). Enable overlap later with real feathering if needed.
 * **Static z-score**: done per tile; swap to global stats if you have them.
 * **Exogenous deltas**: training uses zeros by default. Plug 1990→2020 deltas if you want strict consistency checks during backtests.
+* **Std map semantics**: if you use `norm.hfi.type: logit`, the std maps written during sampling remain in model space (logit domain). Only min–max normalization scales std linearly back to data space; for logit, interpret std cautiously or recompute spread by resampling and transforming to data space first.
 
 ---
 

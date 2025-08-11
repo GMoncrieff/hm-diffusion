@@ -15,7 +15,7 @@ ensemble:
 inference_tiles:
   size: 128
   stride: 128
-  feather: hann        # hann window blending on overlaps
+  feather: hann        # Ignored when stride == size (no overlap). Keep 'none' or equal stride/size until feathering is implemented.
 
 output:
   dir: models/forecasts/2050_baseline
