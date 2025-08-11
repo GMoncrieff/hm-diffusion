@@ -1,0 +1,63 @@
+# Baseline data config for 30-year pairs (1990→2020 for training; 2020→2050 for inference)
+name: hfi_1km_pairs
+seed: 1337
+
+# Core raster paths (placeholders)
+paths:
+  hfi_1990: data/raw/hfi/hfi_1990.tif         # REQUIRED
+  hfi_2020: data/raw/hfi/hfi_2020.tif         # REQUIRED
+  # Optional: projected covariate deltas for inference (2020→2050)
+  # If missing, the pipeline will inject zeros.
+  exogenous_2020_2050:
+    population_delta: data/exo/pop_delta_2020_2050.tif
+    precip_delta: data/exo/pr_delta_2020_2050.tif
+    tmean_delta: data/exo/tmean_delta_2020_2050.tif
+
+# Static covariates (stitched into a single stack)
+static:
+  channels:
+    - data/static/elevation.tif
+    - data/static/slope.tif
+    - data/static/biome_onehot_0.tif
+    - data/static/biome_onehot_1.tif
+    # ... add as needed
+  normalize: zscore  # {zscore|minmax|none}
+
+# Tiling
+tiles:
+  size: 128            # 128x128 tiles by default
+  stride: 64           # overlap for smoother stitching
+  shuffle_tiles: true
+
+# Targets
+target:
+  learn_delta: true    # model predicts ΔHFI (30y change); reconstructed at inference
+  clip01: true         # clamp to [0,1] after inverse transforms
+
+# Normalization
+norm:
+  hfi:
+    type: minmax       # {zscore|minmax|logit}; for diffusion it's common to use minmax or logit
+    range: [0.0, 1.0]
+    logit_epsilon: 1.0e-4
+  exogenous: zscore
+  static: zscore
+
+# Dataloaders
+loader:
+  train:
+    batch_size: 16
+    num_workers: 6
+    pin_memory: true
+    drop_last: true
+  val:
+    batch_size: 8
+    num_workers: 4
+    pin_memory: true
+
+# Splits (geo-block or tile lists). Provide either explicit tile index lists or a mask.
+split:
+  strategy: geoblock           # {geoblock|bylist}
+  geoblock:
+    block_deg: 10              # hold out 10°x10° macro cells for validation
+    val_fraction: 0.1

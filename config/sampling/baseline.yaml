@@ -1,0 +1,30 @@
+# Used by scripts/sample_ensembles.py
+input:
+  condition_year: 2020
+  delta_years: 30
+
+sampler:
+  method: ddpm        # {ddpm|dpmpp}
+  steps: 30
+  tau: 1.0
+  cfg_scale: 0.0
+
+ensemble:
+  K: 32
+
+inference_tiles:
+  size: 128
+  stride: 64
+  feather: hann        # hann window blending on overlaps
+
+output:
+  dir: models/forecasts/2050_baseline
+  write:
+    mean: true
+    std: true
+    p10: true
+    median: true
+    p90: true
+    members: false     # enable later if you want full stacks
+  format: gtiff        # {gtiff|zarr}
+  compress: deflate

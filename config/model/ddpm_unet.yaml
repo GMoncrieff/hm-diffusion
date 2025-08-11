@@ -1,0 +1,30 @@
+# Conditional DDPM (ε-prediction) with a plain 2D U-Net backbone
+arch:
+  in_channels: 1            # HFI_t (post-transform). Adapter will append static/exo via conditioning
+  cond_channels: 0          # set by data adapter at runtime (static + exogenous deltas)
+  out_channels: 1           # predict clean x0 or Δ (depending on target.learn_delta)
+  base_channels: 96
+  channel_mults: [1, 2, 4, 4]   # 4 scales
+  num_res_blocks: 2
+  dropout: 0.0
+  norm: group
+  activation: silu
+  time_embed_dim: 384
+  use_attention: false      # keep baseline simple; can add later
+
+diffusion:
+  schedule: cosine          # {linear|cosine}
+  timesteps: 1000
+  parameterization: eps     # {eps|v}
+  loss_weighting: uniform   # baseline uniform weights across t
+
+loss:
+  aux_l1_on_x0:
+    enabled: true
+    weight: 0.5
+
+optim:
+  lr: 3.0e-4
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  grad_clip_norm: 1.0
