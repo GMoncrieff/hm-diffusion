@@ -14,7 +14,7 @@ ensemble:
 
 inference_tiles:
   size: 128
-  stride: 64
+  stride: 128
   feather: hann        # hann window blending on overlaps
 
 output:

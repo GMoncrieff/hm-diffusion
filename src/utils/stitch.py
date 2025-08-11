@@ -79,6 +79,16 @@ def sliding_window_sample_and_stitch(
     # baseline: recommend stride == tile for clean writing (no feather).
     assert stride == tile_size or feather == "none", "Baseline stitcher expects stride==size or feather=none."
 
+    # access normalizer to invert model-space to data-space
+    norm = getattr(cond, "norm", None)
+    norm_cfg = getattr(cond, "cfg", {}).get("norm", {}) if hasattr(cond, "cfg") else {}
+    hfi_norm = norm_cfg.get("hfi", {}) if isinstance(norm_cfg, dict) else {}
+    hfi_type = hfi_norm.get("type", "minmax")
+    hfi_range = hfi_norm.get("range", [0.0, 1.0])
+    learn_delta = False
+    if hasattr(cond, "cfg") and isinstance(cond.cfg, dict):
+        learn_delta = bool(cond.cfg.get("target", {}).get("learn_delta", False))
+
     for i in tqdm(range(len(cond)), desc="Sampling tiles"):
         tile = cond.tile(i)
         c = tile["cond"].unsqueeze(0).to(device)  # [1,C,H,W]
@@ -90,6 +100,25 @@ def sliding_window_sample_and_stitch(
         mean = preds.mean(axis=0).astype(np.float32)
         std = preds.std(axis=0).astype(np.float32)
         p10, med, p90 = _percentiles(preds, qs=(10, 50, 90))
+
+        # if learning delta, add back x_t (2020) in model space before inverse-transform
+        if learn_delta:
+            x_t_m = c[0, 0].detach().cpu().numpy()
+            mean = mean + x_t_m
+            p10 = p10 + x_t_m
+            med = med + x_t_m
+            p90 = p90 + x_t_m
+
+        # inverse-normalize from model-space to data-space
+        if norm is not None:
+            mean = norm.hfi_from_model(mean)
+            p10 = norm.hfi_from_model(p10)
+            med = norm.hfi_from_model(med)
+            p90 = norm.hfi_from_model(p90)
+            # std: for minmax only, linear scale; for logit leave as model-space (nonlinear)
+            if hfi_type == "minmax":
+                lo, hi = (hfi_range[0], hfi_range[1]) if isinstance(hfi_range, (list, tuple)) else (0.0, 1.0)
+                std = std * float(hi - lo)
 
         if write_mean: writers["mean"].write(mean, 1, window=rio.windows.Window(col, r, w, h))
         if write_std:  writers["std"].write(std, 1, window=rio.windows.Window(col, r, w, h))

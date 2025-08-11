@@ -60,7 +60,8 @@ def main():
         mode=cfg.checkpoints.mode,
         save_top_k=cfg.checkpoints.save_top_k,
         every_n_train_steps=cfg.checkpoints.every_n_train_steps,
-        filename="ddpm-{step:06d}-{val_mae_recon:.4f}",
+        # keep filename simple to avoid metric name formatting issues
+        filename="ddpm-{step:06d}",
         auto_insert_metric_name=False,
     )
     lr_cb = LearningRateMonitor(logging_interval="step")
@@ -79,6 +80,14 @@ def main():
 
     # --- data & model ---
     dm = PairedStepDataModule(cfg)
+    # ensure splits are prepared so cond_channels is correct
+    dm.setup("fit")
+    # derive cond_channels (1 + #static [+ #exo if later added])
+    if "arch" in cfg and hasattr(cfg["arch"], "cond_channels"):
+        cfg.arch.cond_channels = int(dm.cond_channels)
+    elif "arch" in cfg:
+        # dict-style
+        cfg["arch"]["cond_channels"] = int(dm.cond_channels)
     model = DiffusionLightningModule(cfg)
 
     # --- train ---

@@ -210,12 +210,21 @@ class PairedTilesDataset(Dataset):
             static = np.stack([_Normalizer.zscore_tile(s) for s in static], axis=0)
         exo = np.stack(exo_train, axis=0) if exo_train else np.zeros((0, t.height, t.width), np.float32)
 
+        # target can be delta or absolute depending on config
+        if self.target_delta:
+            target_arr = (y_tp_m - x_t_m).astype(np.float32)[None, ...]
+        else:
+            target_arr = y_tp_m.astype(np.float32)[None, ...]
+
         cond = np.concatenate([x_t_m[None, ...], static, exo], axis=0).astype(np.float32)  # [C_cond,H,W]
-        target = y_tp_m.astype(np.float32)[None, ...]  # model x0 is Y_{t+Δ} in model space
+
+        # sanitize NaNs to avoid propagating through convs; optional mask channel can be added later
+        cond = np.nan_to_num(cond, nan=0.0, posinf=0.0, neginf=0.0)
+        target_arr = np.nan_to_num(target_arr, nan=0.0, posinf=0.0, neginf=0.0)
 
         sample = {
             "cond": torch.from_numpy(cond),
-            "target": torch.from_numpy(target),
+            "target": torch.from_numpy(target_arr),
             "meta": {
                 "row": t.row, "col": t.col, "height": t.height, "width": t.width,
             }
@@ -300,6 +309,7 @@ class ConditioningRasterLoader:
             exo = np.stack([_Normalizer.zscore_tile(s) for s in exo], axis=0)
 
         cond = np.concatenate([x_t_m[None, ...], static, exo], axis=0).astype(np.float32)
+        cond = np.nan_to_num(cond, nan=0.0, posinf=0.0, neginf=0.0)
         return {
             "cond": torch.from_numpy(cond),
             "window": (t.row, t.col, t.height, t.width),

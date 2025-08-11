@@ -47,13 +47,12 @@ class DDPM(nn.Module):
         eps = self.predict_eps(x_t, cond, t)
         # estimate x0
         x0_hat = (x_t - torch.sqrt(1.0 - a_bar_t) * eps) / torch.sqrt(a_bar_t)
-        # posterior q(x_{t-1}|x_t, x0)
-        mean = (
-            torch.sqrt(self.alphas_bar[t - 1][:, None, None, None].clamp(min=1e-8)) * x0_hat
-            + torch.sqrt(1 - self.alphas_bar[t - 1][:, None, None, None].clamp(min=1e-8)) * eps
-            if (t > 0).all()
-            else x0_hat
-        )
+        # posterior q(x_{t-1}|x_t, x0); handle t==0 per-item
+        t_prev = (t - 1).clamp(min=0)
+        a_bar_tm1 = self.alphas_bar[t_prev][:, None, None, None].clamp(min=1e-8)
+        mean_post = torch.sqrt(a_bar_tm1) * x0_hat + torch.sqrt(1 - a_bar_tm1) * eps
+        mask = (t > 0).float()[:, None, None, None]
+        mean = mask * mean_post + (1.0 - mask) * x0_hat
         var = beta_t
         return mean, var, x0_hat
 
